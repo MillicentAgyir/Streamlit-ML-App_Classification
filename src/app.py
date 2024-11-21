@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 
+
 # Load the trained model
 with open(r'C:\Users\Dell\Streamlit-ML-App_Classification\model\churn_model.pkl', 'rb') as file:
     model = pickle.load(file)
