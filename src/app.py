@@ -1,9 +1,13 @@
 
 import streamlit as st
 import pandas as pd
-import pickle
+import os
 import datetime
-import json
+import pickle
+import seaborn as sns
+import matplotlib.pyplot as plt
+import plotly.express as px
+
 
 # Load the trained model
 @st.cache_resource
@@ -11,6 +15,7 @@ def load_model():
     with open(r'C:\Users\Dell\Streamlit-ML-App_Classification\model\churn_model.pkl', 'rb') as file:
         model = pickle.load(file)
     return model
+
 
 model = load_model()
 
@@ -22,7 +27,6 @@ page = st.sidebar.radio("Go to", ["Predict", "History"])
 if page == "Predict":
     # Page Title
     st.title("Predict Customer Churn")
-    st.write("*Please input customer details below:*")
 
     # Create Sections for Inputs
     st.subheader("Personal Info 🧑‍💼")
@@ -44,31 +48,39 @@ if page == "Predict":
     streaming_movies = st.selectbox("Streaming Movies", ["Yes", "No", "No internet service"])
     contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
     paperless_billing = st.selectbox("Paperless Billing", ["Yes", "No"])
-    payment_method = st.selectbox("Payment Method", ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"])
+    payment_method = st.selectbox(
+        "Payment Method",
+        [
+            "Electronic check",
+            "Mailed check",
+            "Bank transfer (automatic)",
+            "Credit card (automatic)",
+        ],
+    )
     monthly_charges = st.number_input("Monthly Charges", 0.0, 200.0, 50.0)
     total_charges = st.number_input("Total Charges", 0.0, 10000.0, 500.0)
 
     # Input Features
     input_features = {
-        'Gender': gender,
-        'SeniorCitizen': 1 if senior_citizen == "Yes" else 0,
-        'Partner': 1 if partner == "Yes" else 0,
-        'Dependents': 1 if dependents == "Yes" else 0,
-        'Tenure': tenure,
-        'PhoneService': 1 if phone_service == "Yes" else 0,
-        'MultipleLines': multiple_lines,
-        'InternetService': internet_service,
-        'OnlineSecurity': online_security,
-        'OnlineBackup': online_backup,
-        'DeviceProtection': device_protection,
-        'TechSupport': tech_support,
-        'StreamingTV': streaming_tv,
-        'StreamingMovies': streaming_movies,
-        'Contract': contract,
-        'PaperlessBilling': 1 if paperless_billing == "Yes" else 0,
-        'PaymentMethod': payment_method,
-        'MonthlyCharges': monthly_charges,
-        'TotalCharges': total_charges
+        "Gender": gender,
+        "SeniorCitizen": 1 if senior_citizen == "Yes" else 0,
+        "Partner": 1 if partner == "Yes" else 0,
+        "Dependents": 1 if dependents == "Yes" else 0,
+        "Tenure": tenure,
+        "PhoneService": 1 if phone_service == "Yes" else 0,
+        "MultipleLines": multiple_lines,
+        "InternetService": internet_service,
+        "OnlineSecurity": online_security,
+        "OnlineBackup": online_backup,
+        "DeviceProtection": device_protection,
+        "TechSupport": tech_support,
+        "StreamingTV": streaming_tv,
+        "StreamingMovies": streaming_movies,
+        "Contract": contract,
+        "PaperlessBilling": 1 if paperless_billing == "Yes" else 0,
+        "PaymentMethod": payment_method,
+        "MonthlyCharges": monthly_charges,
+        "TotalCharges": total_charges,
     }
     input_df = pd.DataFrame([input_features])
 
@@ -78,16 +90,20 @@ if page == "Predict":
         # Apply one-hot encoding
         input_df = pd.get_dummies(input_df, drop_first=True)
 
-        # Add missing columns
-        for feature in trained_features:
-            if feature not in input_df.columns:
-                input_df[feature] = 0
+        # Identify missing features
+        missing_features = [feature for feature in trained_features if feature not in input_df.columns]
 
-        # Ensure column order matches the model's training data
+         # Add all missing features at once
+        if missing_features:
+        # Create a DataFrame with missing features, filled with zeros
+           missing_df = pd.DataFrame(0, index=input_df.index, columns=missing_features)
+           input_df = pd.concat([input_df, missing_df], axis=1)
+
+    # Ensure column order matches the model's training data
         input_df = input_df[trained_features]
 
         return input_df
-
+    
     # Get the feature names from the trained model
     trained_features = model.feature_names_in_
 
@@ -96,21 +112,34 @@ if page == "Predict":
 
     # Predict Button
     if st.button("Predict"):
-        # Get the prediction
+        # Make the prediction
         prediction = model.predict(input_df)[0]
 
-        # Ensure all values in input_features are JSON serializable
-        serializable_features = {k: int(v) if isinstance(v, bool) else v for k, v in input_features.items()}
+        # Ensure all values in `input_features` are JSON serializable
+        serializable_features = {
+            k: int(v) if isinstance(v, bool) else v for k, v in input_features.items()
+        }
 
-        # Save prediction to history.csv
-        with open("history.csv", "a") as f:
-            row = {
-                "Timestamp": str(datetime.datetime.now()),
-                "Input Features": serializable_features,
-                "Prediction": prediction
-            }
-            # Write each entry as a JSON object on a new line
-            f.write(json.dumps(row) + "\n")
+        # Add prediction and timestamp to the input features
+        serializable_features["Timestamp"] = str(datetime.datetime.now())
+        serializable_features["Prediction"] = "Yes" if prediction == 1 else "No"
+
+        # Check if the history file exists
+        if os.path.exists("history.csv"):
+            # Load the existing history
+            history = pd.read_csv("history.csv")
+        else:
+            # Create an empty DataFrame with appropriate columns
+            history = pd.DataFrame(columns=list(serializable_features.keys()))
+
+        # Create a new DataFrame for the current prediction
+        new_record = pd.DataFrame([serializable_features])  # <-- Define the new record here
+
+        # Concatenate the new record to the history DataFrame
+        history = pd.concat([history, new_record], ignore_index=True)
+
+        # Save the updated history back to the CSV file
+        history.to_csv("history.csv", index=False)
 
         # Display Prediction Result
         if prediction == 1:
@@ -120,33 +149,21 @@ if page == "Predict":
 
 # History Page
 elif page == "History":
-    st.title("History Page")
-    st.subheader("📋 Prediction History")
+    st.title("Prediction History")
 
     try:
-        # Read each line in history.csv as a JSON object
-        with open("history.csv", "r") as f:
-            history = [json.loads(line.strip()) for line in f]
+        # Load the history file
+        history = pd.read_csv("history.csv")
 
-        # Convert history to a DataFrame
-        history_df = pd.DataFrame(history)
-
-        # Expand Input Features into separate columns
-        input_features_df = pd.json_normalize(history_df["Input Features"])
-        history_df = pd.concat([history_df.drop(columns=["Input Features"]), input_features_df], axis=1)
-
-        # Convert Prediction to readable format
-        history_df["Prediction"] = history_df["Prediction"].apply(lambda x: "Yes" if x == 1 else "No")
-
-        # Display the History Table
-        st.dataframe(history_df)
+        # Display the DataFrame as a table
+        st.dataframe(history)
 
     except FileNotFoundError:
         st.error("No history found. Make some predictions first!")
-    except json.JSONDecodeError as e:
-        st.error(f"An error occurred while parsing the history file: {e}")
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
 
-              
+
+   
+
 
