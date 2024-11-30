@@ -122,29 +122,26 @@ def homepage():
 # View Data Page
 def view_data_page():
     st.title("Data from Telcos")
-    #st.subheader(" ")
-
-    # Display Cleaned Combined Dataset
+    
+    # Training Dataset
     st.subheader("Training Dataset")
-    try:
-        cleaned_combined_path = "Datasets\cleaned_combined_dataset.csv"
-        cleaned_combined_data = load_and_clean_data(cleaned_combined_path)
-        if cleaned_combined_data is not None:
-            st.dataframe(cleaned_combined_data)
-    except Exception as e:
-        st.error(f"An error occurred while loading the cleaned combined dataset: {e}")
+    if os.path.exists("Datasets\cleaned_combined_dataset.csv"):
+        cleaned_combined_data = load_and_clean_data("Datasets\cleaned_combined_dataset.csv")
+        st.dataframe(cleaned_combined_data)
+    else:
+        st.error("Dataset not found at Datasets/cleaned_combined_dataset.csv. Please upload or include the file.")
 
-    # Display Test Dataset
+
+    # Test Dataset
     st.subheader("Test Dataset")
-    try:
-        test_dataset_path = "Datasets\TestData.csv"
-        if os.path.exists(test_dataset_path):
-            test_dataset = pd.read_csv(test_dataset_path, delimiter=";")
-            st.dataframe(test_dataset)
-        else:
-            st.warning("Test dataset not found. Please upload or save the file at the specified path.")
-    except Exception as e:
-        st.error(f"An error occurred while loading the test dataset: {e}")
+    if os.path.exists("Datasets\TestData.csv"):
+        test_dataset = pd.read_csv("Datasets\TestData.csv", delimiter=";")
+        st.dataframe(test_dataset)
+    else:
+        st.warning(f"Test dataset not found. Please upload or include the file at {test_dataset_path}.")
+
+
+
     # Feature Description
     with st.expander("Expand to learn about dataset features"):
       st.write(
