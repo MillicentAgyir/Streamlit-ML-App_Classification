@@ -3,6 +3,9 @@ import pandas as pd
 import os
 import datetime
 import pickle
+import seaborn as sns
+import matplotlib.pyplot as plt
+import plotly.express as px
 
 # Load the trained model
 @st.cache_resource
@@ -15,8 +18,26 @@ def load_model():
         st.error("Model file not found. Please make sure the model is available at the specified path.")
         return None
 
-
 model = load_model()
+
+# Function to load and clean the dataset
+def load_and_clean_data(data_path):
+    try:
+        if os.path.exists(data_path):
+            data = pd.read_csv(data_path)
+            if "CustomerID" in data.columns:
+                # Remove the row containing '7590-VHVEG'
+                data = data[data["CustomerID"] != "7590-VHVEG"]
+            if "Churn" in data.columns:
+                # Replace True/False with Yes/No
+                data["Churn"] = data["Churn"].replace({True: "Yes", False: "No"})
+            return data
+        else:
+            st.error(f"Dataset not found at {data_path}.")
+            return None
+    except Exception as e:
+        st.error(f"An error occurred while loading the dataset: {e}")
+        return None
 
 # Authentication Function
 def authenticate():
@@ -34,12 +55,10 @@ def authenticate():
         else:
             st.error("Invalid credentials. Please try again.")
 
-
 # Sidebar Navigation
 def navigation():
     st.sidebar.title("Navigation")
     return st.sidebar.radio("Go to", ["Home", "View Data", "Dashboard", "Predict", "History"])
-
 
 # Homepage
 def homepage():
@@ -62,28 +81,128 @@ def homepage():
         st.session_state["navigate_to_login"] = True
         st.rerun()
 
-
 # View Data Page
 def view_data_page():
     st.title("View Data")
-    st.subheader("View Proprietary Data from Vodafone")
+    st.subheader("Proprietary Data from Vodafone")
+
+    # Display Cleaned Combined Dataset
+    st.subheader("Training Dataset")
     try:
-        if os.path.exists("data.csv"):
-            data = pd.read_csv("data.csv")  # Replace with your dataset path
-            st.dataframe(data)
+        cleaned_combined_path = r"C:\Users\Dell\Streamlit-ML-App_Classification\Streamlit-ML-App_Classification\Datasets\cleaned_combined_dataset.csv"
+        cleaned_combined_data = load_and_clean_data(cleaned_combined_path)
+        if cleaned_combined_data is not None:
+            st.dataframe(cleaned_combined_data)
+    except Exception as e:
+        st.error(f"An error occurred while loading the cleaned combined dataset: {e}")
+    
+    # Display Test Dataset
+    st.subheader("Test Dataset")
+    try:
+        test_dataset_path = r"C:\Users\Dell\Streamlit-ML-App_Classification\Streamlit-ML-App_Classification\Datasets\TestData.csv"
+        if os.path.exists(test_dataset_path):
+            test_dataset = pd.read_csv(test_dataset_path, delimiter=";")
+            st.dataframe(test_dataset)
         else:
-            st.warning("Data file not found. Please upload or add your dataset.")
+            st.warning("Test dataset not found. Please upload or save the file at the specified path.")
+    except Exception as e:
+        st.error(f"An error occurred while loading the test dataset: {e}")
+#Dashboard
+def dashboard_page():
+    st.title("Dashboard")
+    dashboard_type = st.selectbox("Select Dashboard Type", ["EDA", "Analytics"])
+
+    try:
+        # Path to the dataset
+        data_path = r"C:\Users\Dell\Streamlit-ML-App_Classification\Streamlit-ML-App_Classification\Datasets\cleaned_combined_dataset.csv"
+        data = load_and_clean_data(data_path)
+
+        if data is None:
+            return
+
+        
+        if dashboard_type == "EDA":
+            st.subheader("Exploratory Data Analysis")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write("### Gender Distribution")
+                gender_counts = data["gender"].value_counts()
+                gender_pie = px.pie(
+                    gender_counts,
+                    values=gender_counts.values,
+                    names=gender_counts.index,
+                    color_discrete_sequence=px.colors.sequential.RdBu,
+                )
+                st.plotly_chart(gender_pie, use_container_width=True)
+            
+            with col2:
+                st.write("### Outliers in Numerical Data")
+                fig, ax = plt.subplots(figsize=(10, 8))
+                sns.boxplot(data=data.select_dtypes(include=["number"]), ax=ax, palette="Set3")
+                st.pyplot(fig)
+
+            with col1:
+              st.write("### Correlation Heatmap")
+              # Ensure "CustomerID" exists and remove the specific row
+              if "CustomerID" in data.columns:
+                  data = data[data["CustomerID"] != "7590-VHVEG"]
+             # Select only numeric columns
+              numeric_data = data.select_dtypes(include=["number"])
+              # Plot the heatmap
+              fig, ax = plt.subplots(figsize=(5, 3))
+              sns.heatmap(numeric_data.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+              st.pyplot(fig)
+
+
+        elif dashboard_type == "Analytics":
+            st.subheader("KPIs")
+            attrition_rate = round((data["Churn"].value_counts(normalize=True).get("Yes", 0)) * 100, 2)
+            avg_income = f"${data['MonthlyCharges'].mean():,.2f}"
+            avg_clv = f"${data['TotalCharges'].mean():,.2f}"
+            data_size = data.shape[0]
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(label="Attrition Rate", value=f"{attrition_rate}%")
+                st.metric(label="Avg Monthly Income", value=avg_income)
+            with col2:
+                st.metric(label="Avg Customer Lifetime Value", value=avg_clv)
+                st.metric(label="Data Size", value=data_size)
+
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
-
-# Dashboard Page (Placeholder)
-def dashboard_page():
-    st.title("Dashboard")
-    st.write("The dashboard will display here when the dataset is added. Replace this placeholder when ready.")
-
-
 # Predict Page
+def preprocess_input(input_df, trained_features):
+    """
+    Preprocess the input data to match the trained model's feature set.
+    - Adds missing features with default values in one step.
+    - Ensures the column order matches the trained model.
+    """
+    # Create dummy variables for categorical data
+    input_df = pd.get_dummies(input_df, drop_first=True)
+
+    # Identify missing and extra features
+    missing_features = [feature for feature in trained_features if feature not in input_df.columns]
+    extra_features = [feature for feature in input_df.columns if feature not in trained_features]
+
+    # Add missing features with default value 0
+    if missing_features:
+        missing_df = pd.DataFrame(0, index=input_df.index, columns=missing_features)
+        input_df = pd.concat([input_df, missing_df], axis=1)
+
+    # Drop extra features
+    input_df = input_df.drop(columns=extra_features, errors="ignore")
+
+    # Ensure the column order matches the trained model
+    input_df = input_df[trained_features]
+
+    # Return a de-fragmented DataFrame
+    return input_df.copy()
+
+
+
 def predict_page():
     st.title("Predict Customer Churn")
 
@@ -91,17 +210,14 @@ def predict_page():
         st.error("The prediction model is not loaded. Please check the model file.")
         return
 
-    # Input fields for prediction
-    st.subheader("Personal Info 🧑‍💼")
+    # Input customer details
+    st.subheader("Enter Customer Details")
     gender = st.selectbox("Gender", ["Male", "Female"])
     senior_citizen = st.selectbox("Senior Citizen", ["Yes", "No"])
     partner = st.selectbox("Partner", ["Yes", "No"])
     dependents = st.selectbox("Dependents", ["Yes", "No"])
-
-    st.subheader("Work Info 💼")
     tenure = st.slider("Tenure (Months)", 0, 72, 12)
     phone_service = st.selectbox("Phone Service", ["Yes", "No"])
-    multiple_lines = st.selectbox("Multiple Lines", ["Yes", "No", "No phone service"])
     internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
     online_security = st.selectbox("Online Security", ["Yes", "No", "No internet service"])
     online_backup = st.selectbox("Online Backup", ["Yes", "No", "No internet service"])
@@ -123,14 +239,14 @@ def predict_page():
     monthly_charges = st.number_input("Monthly Charges", 0.0, 200.0, 50.0)
     total_charges = st.number_input("Total Charges", 0.0, 10000.0, 500.0)
 
-    input_features = {
+    # Prepare input data for prediction
+    input_data = {
         "Gender": gender,
         "SeniorCitizen": 1 if senior_citizen == "Yes" else 0,
         "Partner": 1 if partner == "Yes" else 0,
         "Dependents": 1 if dependents == "Yes" else 0,
         "Tenure": tenure,
         "PhoneService": 1 if phone_service == "Yes" else 0,
-        "MultipleLines": multiple_lines,
         "InternetService": internet_service,
         "OnlineSecurity": online_security,
         "OnlineBackup": online_backup,
@@ -144,37 +260,31 @@ def predict_page():
         "MonthlyCharges": monthly_charges,
         "TotalCharges": total_charges,
     }
-    input_df = pd.DataFrame([input_features])
 
-    @st.cache_data
-    def preprocess_input(input_df, trained_features):
-        input_df = pd.get_dummies(input_df, drop_first=True)
-        missing_features = [feature for feature in trained_features if feature not in input_df.columns]
-        if missing_features:
-            missing_df = pd.DataFrame(0, index=input_df.index, columns=missing_features)
-            input_df = pd.concat([input_df, missing_df], axis=1)
-        input_df = input_df[trained_features]
-        return input_df
+    input_df = pd.DataFrame([input_data])
 
-    trained_features = model.feature_names_in_
+    # Preprocess the input to align with the model's features
+    trained_features = model.feature_names_in_  # Features used during model training
     input_df = preprocess_input(input_df, trained_features)
 
+    # Predict
     if st.button("Predict"):
         prediction = model.predict(input_df)[0]
-        st.success(f"The customer is likely to churn: {'Yes' if prediction == 1 else 'No'}")
+        prediction_label = "This customer is likely to churn" if prediction == 1 else "This customer is not likely to churn"
+        st.success(f"Prediction: {prediction_label}")
 
 
 # History Page
 def history_page():
     st.title("Prediction History")
     try:
-        history = pd.read_csv("history.csv")
-        st.dataframe(history)
-    except FileNotFoundError:
-        st.error("No history found. Please make some predictions first!")
+        if os.path.exists("history.csv"):
+            history = pd.read_csv("history.csv")
+            st.dataframe(history)
+        else:
+            st.warning("No prediction history found.")
     except Exception as e:
-        st.error(f"An unexpected error occurred: {e}")
-
+        st.error(f"An error occurred: {e}")
 
 # Main App
 def main_app():
@@ -206,7 +316,6 @@ def main_app():
         else:
             st.warning("You must log in first.")
             authenticate()
-
 
 # Application Entry Point
 if "navigate_to_login" in st.session_state and st.session_state["navigate_to_login"]:
