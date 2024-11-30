@@ -138,7 +138,7 @@ def view_data_page():
         test_dataset = pd.read_csv("Datasets\TestData.csv", delimiter=";")
         st.dataframe(test_dataset)
     else:
-        st.warning(f"Test dataset not found. Please upload or include the file at {test_dataset_path}.")
+        st.warning(f"Test dataset not found. Please upload or include the file.")
 
 
 
