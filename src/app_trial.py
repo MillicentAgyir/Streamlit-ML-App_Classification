@@ -6,8 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
 
-st.write("Current working directory:", os.getcwd())
-st.write("Files in current directory:", os.listdir())
+
 # Load the trained model
 @st.cache_resource
 
@@ -15,7 +14,7 @@ st.write("Files in current directory:", os.listdir())
 def load_model():
     try:
         model_path = os.path.join(os.getcwd(), "models", "churn_model.pkl")
-        st.write(f"Attempting to load model from: {model_path}")  # Debugging output
+       # st.write(f"Attempting to load model from: {model_path}")  # Debugging output
         with open(model_path, 'rb') as file:
             model = pickle.load(file)
         return model
@@ -278,7 +277,8 @@ def predict_page():
         "SeniorCitizen": 1 if st.selectbox("Senior Citizen", ["Yes", "No"]) == "Yes" else 0,
         "Partner": 1 if st.selectbox("Partner", ["Yes", "No"]) == "Yes" else 0,
         "Dependents": 1 if st.selectbox("Dependents", ["Yes", "No"]) == "Yes" else 0,
-        "Tenure": st.slider("Tenure (Months)", 0, 72, 12),
+        "Tenure": st.slider("Tenure (Months)",  value=12, step=1),
+        #"tenure = st.number_input("Tenure (Months)", value=12, step=1),
         "PhoneService": 1 if st.selectbox("Phone Service", ["Yes", "No"]) == "Yes" else 0,
         "InternetService": st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"]),
         "OnlineSecurity": st.selectbox("Online Security", ["Yes", "No", "No internet service"]),
@@ -293,8 +293,8 @@ def predict_page():
             "Payment Method",
             ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"]
         ),
-        "MonthlyCharges": st.number_input("Monthly Charges", 0.0, 200.0, 50.0),
-        "TotalCharges": st.number_input("Total Charges", 0.0, 10000.0, 500.0),
+        "MonthlyCharges": st.number_input("Monthly Charges", value=0.00, step=0.1),
+        "TotalCharges": st.number_input("Total Charges", value=0.00, step=0.1),
     }
 
     input_df = pd.DataFrame([input_data])
