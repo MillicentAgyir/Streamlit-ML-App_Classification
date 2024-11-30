@@ -127,7 +127,7 @@ def view_data_page():
     # Display Cleaned Combined Dataset
     st.subheader("Training Dataset")
     try:
-        cleaned_combined_path = r"C:\Users\Dell\Streamlit-ML-App_Classification\Streamlit-ML-App_Classification\Datasets\cleaned_combined_dataset.csv"
+        cleaned_combined_path = "Datasets\cleaned_combined_dataset.csv"
         cleaned_combined_data = load_and_clean_data(cleaned_combined_path)
         if cleaned_combined_data is not None:
             st.dataframe(cleaned_combined_data)
@@ -137,7 +137,7 @@ def view_data_page():
     # Display Test Dataset
     st.subheader("Test Dataset")
     try:
-        test_dataset_path = r"C:\Users\Dell\Streamlit-ML-App_Classification\Streamlit-ML-App_Classification\Datasets\TestData.csv"
+        test_dataset_path = "Datasets\TestData.csv"
         if os.path.exists(test_dataset_path):
             test_dataset = pd.read_csv(test_dataset_path, delimiter=";")
             st.dataframe(test_dataset)
@@ -181,7 +181,7 @@ def dashboard_page():
 
     try:
         # Path to the dataset
-        data_path = r"C:\Users\Dell\Streamlit-ML-App_Classification\Streamlit-ML-App_Classification\Datasets\cleaned_combined_dataset.csv"
+        data_path = "Datasets\cleaned_combined_dataset.csv"
         data = load_and_clean_data(data_path)
 
         if data is None:
