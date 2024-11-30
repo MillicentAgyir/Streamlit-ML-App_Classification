@@ -10,7 +10,7 @@ import plotly.express as px
 @st.cache_resource
 def load_model():
     try:
-        with open(r'C:\Users\Dell\Streamlit-ML-App_Classification\models\churn_model.pkl', 'rb') as file:
+        with open(r'src\churn_model.pkl', 'rb') as file:
             model = pickle.load(file)
         return model
     except FileNotFoundError:
