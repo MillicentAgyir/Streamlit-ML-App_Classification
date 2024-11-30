@@ -6,15 +6,24 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
 
+st.write("Current working directory:", os.getcwd())
+st.write("Files in current directory:", os.listdir())
 # Load the trained model
+@st.cache_resource
+
 @st.cache_resource
 def load_model():
     try:
-        with open('models\churn_model.pkl', 'rb') as file:
+        model_path = os.path.join(os.getcwd(), "models", "churn_model.pkl")
+        st.write(f"Attempting to load model from: {model_path}")  # Debugging output
+        with open(model_path, 'rb') as file:
             model = pickle.load(file)
         return model
     except FileNotFoundError:
-        st.error("Model file not found. Please make sure the model is available at the specified path.")
+        st.error(f"Model file not found at {model_path}. Please upload the file.")
+        return None
+    except Exception as e:
+        st.error(f"An unexpected error occurred while loading the model: {e}")
         return None
 
 model = load_model()
