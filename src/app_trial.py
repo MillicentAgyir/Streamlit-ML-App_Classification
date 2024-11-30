@@ -228,6 +228,33 @@ def dashboard_page():
         st.error(f"An error occurred: {e}")
 
 # Predict Page
+def preprocess_input(input_df, trained_features):
+    """
+    Preprocess the input data to match the trained model's feature set.
+    - Adds missing features with default values in one step.
+    - Ensures the column order matches the trained model.
+    """
+    # Create dummy variables for categorical data
+    input_df = pd.get_dummies(input_df, drop_first=True)
+
+    # Identify missing and extra features
+    missing_features = [feature for feature in trained_features if feature not in input_df.columns]
+    extra_features = [feature for feature in input_df.columns if feature not in trained_features]
+
+    # Add missing features with default value 0
+    if missing_features:
+        missing_df = pd.DataFrame(0, index=input_df.index, columns=missing_features)
+        input_df = pd.concat([input_df, missing_df], axis=1)
+
+    # Drop extra features
+    input_df = input_df.drop(columns=extra_features, errors="ignore")
+
+    # Ensure the column order matches the trained model
+    input_df = input_df[trained_features]
+
+    # Return a de-fragmented DataFrame
+    return input_df.copy()
+
 def predict_page():
     st.title("Predict Customer Churn")
 
@@ -235,34 +262,43 @@ def predict_page():
         st.error("The prediction model is not loaded. Please check the model file.")
         return
 
+    # Input customer details
     st.subheader("Enter Customer Details")
-    gender = st.selectbox("Gender", ["Male", "Female"])
-    senior_citizen = st.selectbox("Senior Citizen", ["Yes", "No"])
-    partner = st.selectbox("Partner", ["Yes", "No"])
-    dependents = st.selectbox("Dependents", ["Yes", "No"])
-    tenure = st.slider("Tenure (Months)", 0, 72, 12)
-    phone_service = st.selectbox("Phone Service", ["Yes", "No"])
-    internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
-    monthly_charges = st.number_input("Monthly Charges", 0.0, 200.0, 50.0)
-    total_charges = st.number_input("Total Charges", 0.0, 10000.0, 500.0)
-
     input_data = {
-        "Gender": gender,
-        "SeniorCitizen": 1 if senior_citizen == "Yes" else 0,
-        "Partner": 1 if partner == "Yes" else 0,
-        "Dependents": 1 if dependents == "Yes" else 0,
-        "Tenure": tenure,
-        "PhoneService": 1 if phone_service == "Yes" else 0,
-        "InternetService": internet_service,
-        "MonthlyCharges": monthly_charges,
-        "TotalCharges": total_charges,
+        "Gender": st.selectbox("Gender", ["Male", "Female"]),
+        "SeniorCitizen": 1 if st.selectbox("Senior Citizen", ["Yes", "No"]) == "Yes" else 0,
+        "Partner": 1 if st.selectbox("Partner", ["Yes", "No"]) == "Yes" else 0,
+        "Dependents": 1 if st.selectbox("Dependents", ["Yes", "No"]) == "Yes" else 0,
+        "Tenure": st.slider("Tenure (Months)", 0, 72, 12),
+        "PhoneService": 1 if st.selectbox("Phone Service", ["Yes", "No"]) == "Yes" else 0,
+        "InternetService": st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"]),
+        "OnlineSecurity": st.selectbox("Online Security", ["Yes", "No", "No internet service"]),
+        "OnlineBackup": st.selectbox("Online Backup", ["Yes", "No", "No internet service"]),
+        "DeviceProtection": st.selectbox("Device Protection", ["Yes", "No", "No internet service"]),
+        "TechSupport": st.selectbox("Tech Support", ["Yes", "No", "No internet service"]),
+        "StreamingTV": st.selectbox("Streaming TV", ["Yes", "No", "No internet service"]),
+        "StreamingMovies": st.selectbox("Streaming Movies", ["Yes", "No", "No internet service"]),
+        "Contract": st.selectbox("Contract", ["Month-to-month", "One year", "Two year"]),
+        "PaperlessBilling": 1 if st.selectbox("Paperless Billing", ["Yes", "No"]) == "Yes" else 0,
+        "PaymentMethod": st.selectbox(
+            "Payment Method",
+            ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"]
+        ),
+        "MonthlyCharges": st.number_input("Monthly Charges", 0.0, 200.0, 50.0),
+        "TotalCharges": st.number_input("Total Charges", 0.0, 10000.0, 500.0),
     }
 
     input_df = pd.DataFrame([input_data])
 
+    # Preprocess the input
+    trained_features = model.feature_names_in_
+    input_df = preprocess_input(input_df, trained_features)
+
+    # Predict
     if st.button("Predict"):
         prediction = model.predict(input_df)[0]
-        st.success(f"Prediction: {'This customer is likely to churn' if prediction == 1 else 'This customer is not likely to churn'}")
+        prediction_label = "This customer is likely to churn" if prediction == 1 else "This customer is not likely to churn"
+        st.success(f"Prediction: {prediction_label}")
 
 # History Page
 def history_page():
