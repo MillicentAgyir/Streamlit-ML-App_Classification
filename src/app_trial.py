@@ -181,60 +181,81 @@ def dashboard_page():
     dashboard_type = st.selectbox("Select Dashboard Type", ["EDA", "Analytics"])
 
     try:
-        # Path to the dataset
-        data_path = "Datasets\cleaned_combined_dataset.csv"
-        data = load_and_clean_data(data_path)
+        # Dynamically construct the dataset path
+        data_path = os.path.join(os.getcwd(), "Datasets", "cleaned_combined_dataset.csv")
 
-        if data is None:
+        # Check if the dataset exists
+        if not os.path.exists(data_path):
+            st.error(f"Dataset not found at {data_path}. Please upload or include the file.")
+            return
+
+        # Load and clean the dataset
+        data = pd.read_csv(data_path)
+        if "CustomerID" in data.columns:
+            data = data[data["CustomerID"] != "7590-VHVEG"]  # Remove specific row
+
+        if "Churn" in data.columns:
+            data["Churn"] = data["Churn"].replace({True: "Yes", False: "No"})  # Replace True/False with Yes/No
+
+        if data.empty:
+            st.error("The dataset is empty after cleaning.")
             return
 
         if dashboard_type == "EDA":
             st.subheader("Exploratory Data Analysis")
             col1, col2 = st.columns(2)
 
-            with col1:
-                st.write("### Gender Distribution")
-                gender_counts = data["gender"].value_counts()
-                gender_pie = px.pie(
-                    gender_counts,
-                    values=gender_counts.values,
-                    names=gender_counts.index,
-                    color_discrete_sequence=px.colors.sequential.RdBu,
-                )
-                st.plotly_chart(gender_pie, use_container_width=True)
-            
-            with col2:
-                st.write("### Outliers in Numerical Data")
-                fig, ax = plt.subplots(figsize=(10, 8))
-                sns.boxplot(data=data.select_dtypes(include=["number"]), ax=ax, palette="Set3")
-                st.pyplot(fig)
+            # Gender Distribution
+            if "gender" in data.columns:
+                with col1:
+                    st.write("### Gender Distribution")
+                    gender_counts = data["gender"].value_counts()
+                    gender_pie = px.pie(
+                        values=gender_counts.values,
+                        names=gender_counts.index,
+                        color_discrete_sequence=px.colors.sequential.RdBu,
+                    )
+                    st.plotly_chart(gender_pie, use_container_width=True)
 
-            with col1:
-                st.write("### Correlation Heatmap")
-                if "CustomerID" in data.columns:
-                    data = data[data["CustomerID"] != "7590-VHVEG"]
-                numeric_data = data.select_dtypes(include=["number"])
-                fig, ax = plt.subplots(figsize=(5, 3))
-                sns.heatmap(numeric_data.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
-                st.pyplot(fig)
+            # Outliers in Numerical Data
+            if not data.select_dtypes(include=["number"]).empty:
+                with col2:
+                    st.write("### Outliers in Numerical Data")
+                    fig, ax = plt.subplots(figsize=(10, 8))
+                    sns.boxplot(data=data.select_dtypes(include=["number"]), ax=ax, palette="Set3")
+                    st.pyplot(fig)
+
+            # Correlation Heatmap
+            if not data.select_dtypes(include=["number"]).empty:
+                with col1:
+                    st.write("### Correlation Heatmap")
+                    numeric_data = data.select_dtypes(include=["number"])
+                    fig, ax = plt.subplots(figsize=(5, 3))
+                    sns.heatmap(numeric_data.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+                    st.pyplot(fig)
 
         elif dashboard_type == "Analytics":
             st.subheader("KPIs")
-            attrition_rate = round((data["Churn"].value_counts(normalize=True).get("Yes", 0)) * 100, 2)
-            avg_income = f"${data['MonthlyCharges'].mean():,.2f}"
-            avg_clv = f"${data['TotalCharges'].mean():,.2f}"
-            data_size = data.shape[0]
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric(label="Attrition Rate", value=f"{attrition_rate}%")
-                st.metric(label="Avg Monthly Income", value=avg_income)
-            with col2:
-                st.metric(label="Avg Customer Lifetime Value", value=avg_clv)
-                st.metric(label="Data Size", value=data_size)
+            # Ensure required columns exist
+            if {"Churn", "MonthlyCharges", "TotalCharges"}.issubset(data.columns):
+                churn_rate = round((data["Churn"].value_counts(normalize=True).get("Yes", 0)) * 100, 2)
+                avg_income = f"${data['MonthlyCharges'].mean():,.2f}"
+                avg_clv = f"${data['TotalCharges'].mean():,.2f}"
+                data_size = data.shape[0]
 
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric(label="Churn Rate", value=f"{churn_rate}%")
+                    st.metric(label="Avg Monthly Income", value=avg_income)
+                with col2:
+                    st.metric(label="Avg Customer Lifetime Value", value=avg_clv)
+                    st.metric(label="Data Size", value=data_size)
+            else:
+                st.warning("Required columns for analytics (Churn, MonthlyCharges, TotalCharges) are missing.")
     except Exception as e:
         st.error(f"An error occurred: {e}")
+
 
 # Predict Page
 def preprocess_input(input_df, trained_features):
