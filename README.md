@@ -90,6 +90,13 @@ streamlit run src/app_trial.py
 By default, the app will be available at http://localhost:8501.
 
 
+**Login Credentials:**
+
+**username :**  admin
+
+**password:**  password123
+
+
 **🛠️ Troubleshooting**
 
 
