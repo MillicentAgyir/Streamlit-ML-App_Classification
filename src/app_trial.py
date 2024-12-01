@@ -125,20 +125,24 @@ def view_data_page():
     
     # Training Dataset
     st.subheader("Training Dataset")
-    if os.path.exists("Datasets\cleaned_combined_dataset.csv"):
-        cleaned_combined_data = load_and_clean_data("Datasets\cleaned_combined_dataset.csv")
-        st.dataframe(cleaned_combined_data)
-    else:
-        st.error("Dataset not found at Datasets/cleaned_combined_dataset.csv. Please upload or include the file.")
+    training_data = load_and_clean_data("Datasets/cleaned_combined_dataset.csv")
+    if training_data is not None:
+        st.dataframe(training_data)
+
 
 
     # Test Dataset
+    # Test Dataset
     st.subheader("Test Dataset")
-    if os.path.exists("Datasets\TestData.csv"):
-        test_dataset = pd.read_csv("Datasets\TestData.csv", delimiter=";")
+    try:
+      test_data_path = "Datasets/TestData.csv"  # Use relative paths
+      with open(test_data_path, 'r') as file:  # Check if the file exists
+        test_dataset = pd.read_csv(test_data_path, delimiter=";")  # Correct delimiter
         st.dataframe(test_dataset)
-    else:
-        st.warning(f"Test dataset not found. Please upload or include the file.")
+    except FileNotFoundError:
+      st.error("Test dataset not found. Please upload or include the file.")
+    except Exception as e:
+     st.error(f"An error occurred while loading the test dataset: {e}")
 
 
 
