@@ -247,7 +247,7 @@ def dashboard_page():
                 col1, col2 = st.columns(2)
                 with col1:
                     st.metric(label="Churn Rate", value=f"{churn_rate}%")
-                    st.metric(label="Avg Monthly Income", value=avg_income)
+                    st.metric(label="Avg Monthly Charges", value=avg_income)
                 with col2:
                     st.metric(label="Avg Customer Lifetime Value", value=avg_clv)
                     st.metric(label="Data Size", value=data_size)
