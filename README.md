@@ -127,7 +127,7 @@ Expandable section to explore dataset column descriptions.
 
 **Dashboard**
 
-Interactive charts for:
+Charts for:
 
 Gender distribution
 
@@ -135,7 +135,7 @@ Correlation heatmap
 
 Outliers detection
 
-KPI insights such as churn rate and average income.
+KPI insights such as churn rate and average monthly charges.
 
 
 **Predict**
